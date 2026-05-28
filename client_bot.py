@@ -13,23 +13,23 @@ LYUDA = "LyudmilaVadimovna1"
 
 groq_client = Groq(api_key=GROQ_API_KEY)
 lyuda_chat_ids = set()
-sessions = {}
-processing = set()
 
-# ─── УСЛУГИ ──────────────────────────────────────────────────────────────────
+# Сессии: {user_id: {...}}
+sessions = {}
+
+# ─── УСЛУГИ ───────────────────────────────────────────────────────────────────
 SERVICES = [
-    ("🌐 Сайт-визитка",           "site_card"),
-    ("🛍 Каталог / Магазин",      "site_shop"),
-    ("🏨 База отдыха / Отель",    "site_hotel"),
-    ("🍕 Кафе / Ресторан",        "site_cafe"),
-    ("📱 Telegram Mini App",      "site_miniapp"),
-    ("🤖 Бот с ИИ",               "site_bot"),
-    ("🎨 Лендинг",                "site_landing"),
-    ("❓ Помогите выбрать",       "site_help"),
+    ("🌐 Сайт-визитка",        "site_card"),
+    ("🛍 Каталог / Магазин",   "site_shop"),
+    ("🏨 База отдыха / Отель", "site_hotel"),
+    ("🍕 Кафе / Ресторан",     "site_cafe"),
+    ("📱 Telegram Mini App",   "site_miniapp"),
+    ("🤖 Бот с ИИ",            "site_bot"),
+    ("🎨 Лендинг",             "site_landing"),
+    ("❓ Помогите выбрать",    "site_help"),
 ]
 SERVICE_NAMES = {s[1]: s[0] for s in SERVICES}
 
-# ─── РАЗДЕЛЫ ПО ТИПУ БИЗНЕСА ─────────────────────────────────────────────────
 SECTIONS_BY_SERVICE = {
     "site_card":    ["О нас", "Услуги и цены", "Портфолио / Работы", "Отзывы", "Команда", "Контакты", "Онлайн-запись", "FAQ"],
     "site_shop":    ["Главная", "Каталог товаров", "Акции", "О компании", "Доставка и оплата", "Отзывы", "Контакты", "Корзина"],
@@ -41,152 +41,144 @@ SECTIONS_BY_SERVICE = {
     "site_help":    ["О нас", "Услуги", "Портфолио", "Отзывы", "Контакты"],
 }
 
-# ─── ВОПРОСЫ С ДА/НЕТ ────────────────────────────────────────────────────────
-YES_NO_QUESTIONS = {
-    "Форма связи", "Карта", "Онлайн чат", "SEO", "Аналитика",
-    "Техподдержка", "Домен", "Хостинг", "Панель управления",
-    "Онлайн-запись", "Онлайн-оплата", "Доставка", "Бронирование",
-    "Видео", "Логотип", "Фото", "Тексты", "Многоязычность"
-}
-
-# ─── ВОПРОСЫ ─────────────────────────────────────────────────────────────────
+# ─── ВОПРОСЫ ──────────────────────────────────────────────────────────────────
+# Формат: (ключ, тип, текст вопроса)
+# Типы: "text", "yn", "yn_file", "sections"
 COMMON_QUESTIONS = [
-    ("Имя",               "text",   "Как Вас зовут?"),
-    ("Бизнес",            "text",   "Как называется Ваш бизнес?"),
-    ("Город",             "text",   "В каком городе находитесь?"),
-    ("О бизнесе",         "text",   "Расскажите о своём бизнесе — чем занимаетесь, чем отличаетесь от конкурентов?"),
-    ("Клиенты",           "text",   "Кто Ваши клиенты — кому продаёте или оказываете услуги?"),
-    ("Цель сайта",        "text",   "Какая главная цель? Что должен сделать посетитель — позвонить, записаться, купить?"),
-    ("Телефон",           "text",   "Контактный телефон для сайта:"),
-    ("Соцсети",           "text",   "Соцсети, мессенджеры, email для сайта (все ссылки):"),
-    ("Домен",             "yn",     "Есть ли у Вас домен (например mysite.ru)?"),
-    ("Хостинг",           "yn",     "Есть ли хостинг (сервер)? Или всё нужно с нуля?"),
-    ("Логотип",           "yn_file","Есть ли готовый логотип?"),
-    ("Фото",              "yn_file","Есть ли готовые фотографии (интерьер, товары, команда)?"),
-    ("Тексты",            "yn_file","Есть ли готовые тексты об услугах или компании?"),
-    ("Видео",             "yn",     "Есть ли видео для размещения на сайте?"),
-    ("Стиль",             "text",   "Какой стиль предпочитаете — строгий, яркий, минимализм, природный?"),
-    ("Примеры",           "text",   "Сайты которые нравятся по дизайну (ссылки если есть):"),
-    ("Конкуренты",        "text",   "Сайты конкурентов — что нравится или не нравится?"),
-    ("Разделы",           "sections","Какие разделы нужны на сайте? Выберите:"),
-    ("Форма связи",       "yn",     "Нужна ли форма обратной связи / заявки?"),
-    ("Карта",             "yn",     "Нужна ли карта с адресом?"),
-    ("Онлайн чат",        "yn",     "Нужен ли онлайн-чат на сайте?"),
-    ("SEO",               "yn",     "Нужно ли SEO-продвижение (поиск в Google/Яндекс)?"),
-    ("Аналитика",         "yn",     "Нужна ли статистика посещений?"),
-    ("Многоязычность",    "yn",     "Нужен ли сайт на нескольких языках?"),
-    ("Панель управления", "yn",     "Нужна ли панель для самостоятельного обновления контента?"),
-    ("Техподдержка",      "yn",     "Нужна ли техподдержка после сдачи?"),
-    ("Срок",              "text",   "Когда нужно готово — есть дедлайн?"),
-    ("Бюджет",            "text",   "Примерный бюджет:"),
-    ("Пожелания",         "text",   "Что обязательно должно быть — самое важное для Вас:"),
-    ("Не нужно",          "text",   "Что точно НЕ нужно на сайте:"),
-    ("Дополнительно",     "text",   "Любые идеи, вопросы, пожелания — напишите всё:"),
+    ("Имя",               "text",     "Как Вас зовут?"),
+    ("Бизнес",            "text",     "Как называется Ваш бизнес?"),
+    ("Город",             "text",     "В каком городе находитесь?"),
+    ("О бизнесе",         "text",     "Расскажите о своём бизнесе — чем занимаетесь, чем отличаетесь от конкурентов?"),
+    ("Клиенты",           "text",     "Кто Ваши клиенты — кому продаёте или оказываете услуги?"),
+    ("Цель сайта",        "text",     "Какая главная цель? Что должен сделать посетитель — позвонить, записаться, купить?"),
+    ("Телефон",           "text",     "Контактный телефон для сайта:"),
+    ("Соцсети",           "text",     "Соцсети, мессенджеры, email для сайта (все ссылки):"),
+    ("Домен",             "yn",       "Есть ли у Вас домен (например mysite.ru)?"),
+    ("Хостинг",           "yn",       "Есть ли хостинг (сервер)? Или всё нужно с нуля?"),
+    ("Логотип",           "yn_file",  "Есть ли готовый логотип?"),
+    ("Фото",              "yn_file",  "Есть ли готовые фотографии (интерьер, товары, команда)?"),
+    ("Тексты",            "yn_file",  "Есть ли готовые тексты об услугах или компании?"),
+    ("Видео",             "yn",       "Есть ли видео для размещения на сайте?"),
+    ("Стиль",             "text",     "Какой стиль предпочитаете — строгий, яркий, минимализм, природный?"),
+    ("Примеры",           "text",     "Сайты которые нравятся по дизайну (ссылки если есть):"),
+    ("Конкуренты",        "text",     "Сайты конкурентов — что нравится или не нравится?"),
+    ("Разделы",           "sections", "Какие разделы нужны на сайте? Выберите:"),
+    ("Форма связи",       "yn",       "Нужна ли форма обратной связи / заявки?"),
+    ("Карта",             "yn",       "Нужна ли карта с адресом?"),
+    ("Онлайн чат",        "yn",       "Нужен ли онлайн-чат на сайте?"),
+    ("SEO",               "yn",       "Нужно ли SEO-продвижение (поиск в Google/Яндекс)?"),
+    ("Аналитика",         "yn",       "Нужна ли статистика посещений?"),
+    ("Многоязычность",    "yn",       "Нужен ли сайт на нескольких языках?"),
+    ("Панель управления", "yn",       "Нужна ли панель для самостоятельного обновления контента?"),
+    ("Техподдержка",      "yn",       "Нужна ли техподдержка после сдачи?"),
+    ("Срок",              "text",     "Когда нужно готово — есть дедлайн?"),
+    ("Бюджет",            "text",     "Примерный бюджет:"),
+    ("Пожелания",         "text",     "Что обязательно должно быть — самое важное для Вас:"),
+    ("Не нужно",          "text",     "Что точно НЕ нужно на сайте:"),
+    ("Дополнительно",     "text",     "Любые идеи, вопросы, пожелания — напишите всё:"),
 ]
 
 EXTRA_QUESTIONS = {
     "site_card": [
-        ("Услуги и цены",   "text", "Перечислите Ваши услуги и цены:"),
-        ("Онлайн-запись",   "yn",   "Нужна ли онлайн-запись на сайте?"),
-        ("Портфолио",       "yn_file", "Есть ли портфолио или примеры работ?"),
+        ("Услуги и цены", "text",    "Перечислите Ваши услуги и цены:"),
+        ("Онлайн-запись", "yn",      "Нужна ли онлайн-запись на сайте?"),
+        ("Портфолио",     "yn_file", "Есть ли портфолио или примеры работ?"),
     ],
     "site_shop": [
-        ("Кол-во товаров",  "text", "Сколько примерно товаров в каталоге?"),
-        ("Онлайн-оплата",   "yn",   "Нужна ли онлайн-оплата?"),
-        ("Доставка",        "yn",   "Есть ли доставка?"),
-        ("Фильтры",         "yn",   "Нужны ли фильтры и поиск по каталогу?"),
+        ("Кол-во товаров", "text", "Сколько примерно товаров в каталоге?"),
+        ("Онлайн-оплата",  "yn",   "Нужна ли онлайн-оплата?"),
+        ("Доставка",       "yn",   "Есть ли доставка?"),
+        ("Фильтры",        "yn",   "Нужны ли фильтры и поиск по каталогу?"),
     ],
     "site_hotel": [
-        ("Номера и цены",   "text", "Опишите типы номеров/домиков и цены:"),
-        ("Бронирование",    "yn",   "Нужно ли онлайн-бронирование?"),
-        ("Питание",         "text", "Есть ли питание — завтраки, столовая, ресторан?"),
-        ("Территория",      "text", "Что есть на территории — бассейн, баня, мангал?"),
-        ("Сезон",           "text", "Работаете круглый год или сезонно?"),
+        ("Номера и цены", "text", "Опишите типы номеров/домиков и цены:"),
+        ("Бронирование",  "yn",   "Нужно ли онлайн-бронирование?"),
+        ("Питание",       "text", "Есть ли питание — завтраки, столовая, ресторан?"),
+        ("Территория",    "text", "Что есть на территории — бассейн, баня, мангал?"),
+        ("Сезон",         "text", "Работаете круглый год или сезонно?"),
     ],
     "site_cafe": [
-        ("Меню",            "yn_file","Есть ли готовое меню?"),
-        ("Доставка",        "yn",   "Есть ли доставка еды?"),
-        ("Бронирование",    "yn",   "Нужно ли бронирование столика?"),
-        ("Вместимость",     "text", "Сколько мест? Есть ли банкетный зал?"),
+        ("Меню",         "yn_file", "Есть ли готовое меню?"),
+        ("Доставка",     "yn",      "Есть ли доставка еды?"),
+        ("Бронирование", "yn",      "Нужно ли бронирование столика?"),
+        ("Вместимость",  "text",    "Сколько мест? Есть ли банкетный зал?"),
     ],
     "site_miniapp": [
-        ("Функционал",      "text", "Что должно делать приложение — запись, заказы, каталог, оплата?"),
-        ("Онлайн-оплата",   "yn",   "Нужна ли оплата внутри приложения?"),
-        ("Уведомления",     "yn",   "Нужны ли push-уведомления?"),
+        ("Функционал",   "text", "Что должно делать приложение — запись, заказы, каталог, оплата?"),
+        ("Онлайн-оплата","yn",   "Нужна ли оплата внутри приложения?"),
+        ("Уведомления",  "yn",   "Нужны ли push-уведомления?"),
     ],
     "site_bot": [
-        ("Назначение",      "text", "Для чего бот — ответы на вопросы, заявки, консультации?"),
-        ("Частые вопросы",  "text", "Какие вопросы чаще всего задают клиенты?"),
-        ("Уведомления",     "yn",   "Нужны ли уведомления о новых заявках?"),
+        ("Назначение",     "text", "Для чего бот — ответы на вопросы, заявки, консультации?"),
+        ("Частые вопросы", "text", "Какие вопросы чаще всего задают клиенты?"),
+        ("Уведомления",    "yn",   "Нужны ли уведомления о новых заявках?"),
     ],
     "site_landing": [
-        ("Оффер",           "text", "Что продаёт лендинг — услугу, товар, акцию?"),
-        ("Целевое действие","text", "Что должен сделать посетитель — заявка, покупка, запись?"),
-        ("Акция",           "text", "Есть ли спецпредложение или дедлайн акции?"),
-        ("Отзывы",          "yn_file","Есть ли отзывы клиентов?"),
+        ("Оффер",           "text",    "Что продаёт лендинг — услугу, товар, акцию?"),
+        ("Целевое действие","text",    "Что должен сделать посетитель — заявка, покупка, запись?"),
+        ("Акция",           "text",    "Есть ли спецпредложение или дедлайн акции?"),
+        ("Отзывы",          "yn_file", "Есть ли отзывы клиентов?"),
     ],
     "site_help": [
-        ("Задача",          "text", "Опишите что хотите получить — какую задачу решить?"),
+        ("Задача", "text", "Опишите что хотите получить — какую задачу решить?"),
     ],
 }
 
-def get_session(user_id):
-    if user_id not in sessions:
-        sessions[user_id] = {
-            "stage": "start", "service": None,
-            "data": {}, "files": [],
-            "q_index": 0, "extra_index": 0,
-            "phase": "common",
-            "selected_sections": [],
-            "user_info": {},
-        }
-    s = sessions[user_id]
-    # Если сессия есть но stage сбросился — восстанавливаем
-    if s.get("stage") == "start" and s.get("service") and s.get("q_index", 0) > 0:
-        s["stage"] = f"q_{s['q_index']}"
-    return s
+def get_questions(service):
+    return COMMON_QUESTIONS + EXTRA_QUESTIONS.get(service, [])
 
-def reset_session(user_id):
-    sessions[user_id] = {
-        "stage": "start", "service": None,
-        "data": {}, "files": [],
-        "q_index": 0, "extra_index": 0,
-        "phase": "common",
+# ─── СЕССИИ ───────────────────────────────────────────────────────────────────
+def new_session():
+    return {
+        "stage": "start",   # start | choosing | waiting_file | quiz
+        "service": None,
+        "q_index": 0,
+        "data": {},
+        "files": [],
         "selected_sections": [],
         "user_info": {},
+        "waiting_file_for": None,  # ключ вопроса для которого ждём файл
     }
 
-# ─── КЛАВИАТУРЫ ──────────────────────────────────────────────────────────────
+def get_session(user_id):
+    if user_id not in sessions:
+        sessions[user_id] = new_session()
+    return sessions[user_id]
+
+def reset_session(user_id):
+    sessions[user_id] = new_session()
+
+# ─── КЛАВИАТУРЫ ───────────────────────────────────────────────────────────────
 def kb_main():
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("📋 Оставить заявку на разработку", callback_data="start_order")],
+        [InlineKeyboardButton("📋 Оставить заявку", callback_data="start_order")],
         [InlineKeyboardButton("💬 Связаться с менеджером", url=f"https://t.me/{LYUDA}")],
     ])
 
 def kb_services():
-    rows = [[InlineKeyboardButton(n, callback_data=f"svc_{d}")] for n,d in SERVICES]
+    rows = [[InlineKeyboardButton(name, callback_data=f"svc_{key}")] for name, key in SERVICES]
     return InlineKeyboardMarkup(rows)
 
 def kb_yn():
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("✅ Да", callback_data="yn_yes"),
-         InlineKeyboardButton("❌ Нет", callback_data="yn_no")],
-        [InlineKeyboardButton("⏭ Пропустить", callback_data="skip_q")],
-        [InlineKeyboardButton("💬 Связаться с менеджером", url=f"https://t.me/{LYUDA}")],
+        [InlineKeyboardButton("✅ Да", callback_data="ans_yes"),
+         InlineKeyboardButton("❌ Нет", callback_data="ans_no")],
+        [InlineKeyboardButton("⏭ Пропустить", callback_data="ans_skip")],
+        [InlineKeyboardButton("💬 Менеджер", url=f"https://t.me/{LYUDA}")],
     ])
 
 def kb_yn_file():
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("✅ Да — пришлю файл/фото", callback_data="yn_yes"),
-         InlineKeyboardButton("❌ Нет", callback_data="yn_no")],
-        [InlineKeyboardButton("⏭ Пропустить", callback_data="skip_q")],
-        [InlineKeyboardButton("💬 Связаться с менеджером", url=f"https://t.me/{LYUDA}")],
+        [InlineKeyboardButton("✅ Да — пришлю файл", callback_data="ans_yes_file"),
+         InlineKeyboardButton("❌ Нет", callback_data="ans_no")],
+        [InlineKeyboardButton("⏭ Пропустить", callback_data="ans_skip")],
+        [InlineKeyboardButton("💬 Менеджер", url=f"https://t.me/{LYUDA}")],
     ])
 
 def kb_text():
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("⏭ Пропустить", callback_data="skip_q")],
-        [InlineKeyboardButton("💬 Связаться с менеджером", url=f"https://t.me/{LYUDA}")],
+        [InlineKeyboardButton("⏭ Пропустить", callback_data="ans_skip")],
+        [InlineKeyboardButton("💬 Менеджер", url=f"https://t.me/{LYUDA}")],
     ])
 
 def kb_sections(service, selected):
@@ -195,7 +187,7 @@ def kb_sections(service, selected):
     for s in sections:
         mark = "✅ " if s in selected else ""
         rows.append([InlineKeyboardButton(f"{mark}{s}", callback_data=f"sec_{s}")])
-    rows.append([InlineKeyboardButton("➡️ Готово — продолжить", callback_data="sec_done")])
+    rows.append([InlineKeyboardButton("➡️ Готово", callback_data="sec_done")])
     return InlineKeyboardMarkup(rows)
 
 def kb_done():
@@ -204,40 +196,28 @@ def kb_done():
         [InlineKeyboardButton("💬 Связаться с менеджером", url=f"https://t.me/{LYUDA}")],
     ])
 
-def kb_skip():
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("⏭ Пропустить", callback_data="skip_q")],
-        [InlineKeyboardButton("💬 Связаться с менеджером", url=f"https://t.me/{LYUDA}")],
-    ])
-
-# ─── ВОПРОСЫ ─────────────────────────────────────────────────────────────────
-def get_all_questions(service):
-    return COMMON_QUESTIONS + EXTRA_QUESTIONS.get(service, [])
-
-def get_current_question(session):
-    questions = get_all_questions(session["service"])
-    idx = session["q_index"]
-    if idx < len(questions):
-        return idx, questions[idx]
-    return idx, None
-
+# ─── ЛОГИКА ВОПРОСОВ ──────────────────────────────────────────────────────────
 async def send_question(bot, chat_id, session):
-    idx, q = get_current_question(session)
-    if q is None:
+    """Отправляет текущий вопрос. Если вопросы закончились — завершает."""
+    service = session["service"]
+    questions = get_questions(service)
+    idx = session["q_index"]
+
+    if idx >= len(questions):
         await finish_order(bot, chat_id, session)
         return
 
-    label, qtype, text = q
-    total = len(get_all_questions(session["service"]))
-    header = f"❓ *Вопрос {idx+1} из {total}*\n\n{text}"
-    session["stage"] = f"q_{idx}"
+    key, qtype, text = questions[idx]
+    total = len(questions)
+    header = f"❓ *Вопрос {idx + 1} из {total}*\n\n{text}"
+    session["stage"] = "quiz"
 
     if qtype == "sections":
         await bot.send_message(
             chat_id=chat_id,
-            text=header + "\n\n_Нажмите на разделы которые нужны, потом «Готово»_",
+            text=header + "\n\n_Нажмите на нужные разделы, потом «Готово»_",
             parse_mode="Markdown",
-            reply_markup=kb_sections(session["service"], session["selected_sections"])
+            reply_markup=kb_sections(service, session["selected_sections"])
         )
     elif qtype == "yn":
         await bot.send_message(chat_id=chat_id, text=header,
@@ -249,45 +229,29 @@ async def send_question(bot, chat_id, session):
         await bot.send_message(chat_id=chat_id, text=header,
             parse_mode="Markdown", reply_markup=kb_text())
 
-async def save_answer(session, label, answer):
-    """Сохраняет ответ и переходит к следующему вопросу"""
-    session["data"][label] = answer
+def save_and_next(session, key, value):
+    """Сохраняет ответ и сдвигает индекс."""
+    session["data"][key] = value
     session["q_index"] += 1
 
-async def clarify_sections(business, service, selected):
-    """Расшифровывает выбранные разделы под конкретный бизнес"""
-    if not selected:
-        return "не выбраны"
-    prompt = (
-        f"Бизнес: {business}, тип сайта: {SERVICE_NAMES.get(service,'')}\n"
-        f"Клиент выбрал разделы: {', '.join(selected)}\n"
-        f"Коротко опиши что должно быть в каждом разделе под этот бизнес. "
-        f"Формат: Раздел — краткое описание содержимого. Без лишних слов."
-    )
-    try:
-        resp = groq_client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[{"role":"user","content":prompt}],
-            max_tokens=300, temperature=0.3
-        )
-        return resp.choices[0].message.content.strip()
-    except:
-        return ", ".join(selected)
+def current_question(session):
+    questions = get_questions(session["service"])
+    idx = session["q_index"]
+    if idx < len(questions):
+        return questions[idx]
+    return None
 
+# ─── ГЕНЕРАЦИЯ ТЗ ─────────────────────────────────────────────────────────────
 async def make_tz(session):
     data = session["data"]
     service = session["service"]
     business = data.get("Бизнес", "не указан")
-    sections_raw = data.get("Разделы", "")
 
-    # Расшифровываем разделы
     if session["selected_sections"]:
-        sections_detail = await clarify_sections(
-            business, service, session["selected_sections"]
-        )
-        data["Разделы"] = sections_detail
+        sections_text = ", ".join(session["selected_sections"])
+        data["Разделы"] = sections_text
 
-    data_text = "\n".join([f"{k}: {v}" for k,v in data.items()])
+    data_text = "\n".join([f"{k}: {v}" for k, v in data.items()])
     files_note = f"\nПрикреплённых файлов: {len(session['files'])}" if session["files"] else ""
 
     prompt = (
@@ -296,16 +260,15 @@ async def make_tz(session):
         f"Данные:\n{data_text}{files_note}\n\n"
         f"Оформи чётко по разделам без предисловий:\n"
         f"КЛИЕНТ: ...\nБИЗНЕС: ...\nУСЛУГА: ...\nЦЕЛЬ: ...\n"
-        f"РАЗДЕЛЫ И СОДЕРЖИМОЕ: ...\nФУНКЦИОНАЛ: ...\nДИЗАЙН: ...\n"
-        f"КОНТЕНТ: ...\nТЕХТРЕБОВАНИЯ: ...\nКОНТАКТЫ: ...\n"
-        f"СРОК: ...\nБЮДЖЕТ: ...\nПОЖЕЛАНИЯ: ...\nПРИМЕЧАНИЯ: ..."
+        f"РАЗДЕЛЫ: ...\nФУНКЦИОНАЛ: ...\nДИЗАЙН: ...\n"
+        f"КОНТЕНТ: ...\nКОНТАКТЫ: ...\nСРОК: ...\nБЮДЖЕТ: ...\nПОЖЕЛАНИЯ: ..."
     )
     try:
         resp = groq_client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[
-                {"role":"system","content":"Ты составляешь техзадание для разработчика. Чётко и конкретно."},
-                {"role":"user","content":prompt}
+                {"role": "system", "content": "Ты составляешь техзадание для разработчика. Чётко и конкретно."},
+                {"role": "user", "content": prompt}
             ],
             max_tokens=1200, temperature=0.3
         )
@@ -318,28 +281,25 @@ async def finish_order(bot, chat_id, session):
     await bot.send_message(chat_id=chat_id, text="⏳ Оформляю заявку...")
     tz = await make_tz(session)
     user = session["user_info"]
-    username = user.get("username","")
-    name = user.get("name","клиент")
+    username = user.get("username", "")
+    name = user.get("name", "клиент")
     user_link = f"@{username}" if username else name
 
-    # Отправляем Люде
     for lyuda_id in lyuda_chat_ids:
         try:
             msg = (
                 f"🆕 *НОВАЯ ЗАЯВКА*\n\n"
                 f"От: {user_link}\n"
-                f"Услуга: {SERVICE_NAMES.get(session['service'],'')}\n\n"
+                f"Услуга: {SERVICE_NAMES.get(session['service'], '')}\n\n"
                 f"📄 *ТЗ:*\n\n{tz}"
             )
             await bot.send_message(chat_id=lyuda_id, text=msg, parse_mode="Markdown")
-
-            # Пересылаем файлы
             for file_id, file_type in session["files"]:
                 try:
                     if file_type == "photo":
                         await bot.send_photo(chat_id=lyuda_id, photo=file_id,
                             caption=f"📎 Файл от {user_link}")
-                    elif file_type == "document":
+                    else:
                         await bot.send_document(chat_id=lyuda_id, document=file_id,
                             caption=f"📎 Файл от {user_link}")
                 except:
@@ -347,29 +307,31 @@ async def finish_order(bot, chat_id, session):
         except Exception as e:
             logger.error(f"Ошибка отправки Люде: {e}")
 
+    session["stage"] = "done"
     await bot.send_message(
         chat_id=chat_id,
         text=(
             "✅ *Заявка принята!*\n\n"
             "Ваши пожелания переданы менеджеру.\n"
             "Мы свяжемся с Вами в ближайшее время.\n\n"
-            "Если хотите уточнить детали — напишите менеджеру напрямую 👇"
+            "Если хотите уточнить детали — напишите менеджеру 👇"
         ),
         parse_mode="Markdown",
         reply_markup=kb_done()
     )
 
-# ─── ХЭНДЛЕРЫ ────────────────────────────────────────────────────────────────
+# ─── ХЭНДЛЕРЫ ─────────────────────────────────────────────────────────────────
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    username = update.effective_user.username or ""
-    name = update.effective_user.first_name or ""
+    user = update.effective_user
+    username = user.username or ""
+    name = user.first_name or ""
+    user_id = user.id
 
     if username == LYUDA:
         lyuda_chat_ids.add(user_id)
         await update.message.reply_text(
             "✅ Люда, ты подключена!\n"
-            "Все заявки от клиентов будут приходить сюда автоматически. 🎉"
+            "Все заявки от клиентов будут приходить сюда. 🎉"
         )
         return
 
@@ -389,154 +351,181 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=kb_main()
     )
 
+
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
+    chat_id = query.message.chat_id
+    session = get_session(user_id)
+    data = query.data
 
-    key = f"btn_{user_id}_{query.id}"
-    if key in processing: return
-    processing.add(key)
-
-    try:
+    # Начать заказ
+    if data == "start_order":
+        reset_session(user_id)
         session = get_session(user_id)
-        chat_id = query.message.chat_id
+        u = query.from_user
+        session["user_info"] = {
+            "username": u.username or "",
+            "name": u.first_name or "",
+            "id": user_id
+        }
+        session["stage"] = "choosing"
+        await query.message.reply_text(
+            "Выберите что нужно разработать:\n\n"
+            "_Не знаете? Выберите последний пункт — поможем разобраться_ 👇",
+            parse_mode="Markdown",
+            reply_markup=kb_services()
+        )
+        return
 
-        if query.data == "start_order":
-            reset_session(user_id)
-            session = get_session(user_id)
-            username = query.from_user.username or ""
-            name = query.from_user.first_name or ""
-            session["user_info"] = {"username": username, "name": name, "id": user_id}
-            await query.message.reply_text(
-                "Выберите что нужно разработать:\n\n"
-                "_Не знаете? Выберите последний пункт — поможем разобраться_ 👇",
-                parse_mode="Markdown",
-                reply_markup=kb_services()
-            )
+    # Выбор услуги
+    if data.startswith("svc_"):
+        service = data[4:]
+        session["service"] = service
+        session["q_index"] = 0
+        session["data"] = {}
+        session["files"] = []
+        session["selected_sections"] = []
+        total = len(get_questions(service))
+        await query.message.reply_text(
+            f"Отлично! Вы выбрали: *{SERVICE_NAMES[service]}*\n\n"
+            f"Задам {total} вопросов — займёт около 5 минут.\n"
+            f"Любой вопрос можно пропустить 👇",
+            parse_mode="Markdown"
+        )
+        await send_question(context.bot, chat_id, session)
+        return
 
-        elif query.data.startswith("svc_"):
-            service = query.data.replace("svc_", "")
-            session["service"] = service
-            session["q_index"] = 0
-            total = len(get_all_questions(service))
-            await query.message.reply_text(
-                f"Отлично! Вы выбрали: *{SERVICE_NAMES[service]}*\n\n"
-                f"Задам {total} вопросов — займёт около 5 минут.\n"
-                f"Любой вопрос можно пропустить.\n\n"
-                f"Если нужна помощь — кнопка «Связаться с менеджером» всегда под рукой.\n\n"
-                f"Поехали! 👇",
-                parse_mode="Markdown"
-            )
-            await send_question(context.bot, chat_id, session)
+    # Ответы на вопросы — нужен активный вопрос
+    if session["stage"] != "quiz":
+        return
 
-        elif query.data in ("yn_yes", "yn_no"):
-            idx, q = get_current_question(session)
-            if q:
-                label, qtype, _ = q
-                answer = "Да" if query.data == "yn_yes" else "Нет"
-                # Если да и ожидаем файл — просим прислать
-                if query.data == "yn_yes" and qtype == "yn_file":
-                    session["data"][label] = "Да — ожидаем файл"
-                    session["stage"] = f"wait_file_{idx}"
-                    await query.message.reply_text(
-                        "📎 Пришлите файл, фото или документ:",
-                        reply_markup=kb_skip()
-                    )
-                    return
-                await save_answer(session, label, answer)
-                await send_question(context.bot, chat_id, session)
+    q = current_question(session)
+    if q is None:
+        return
+    key, qtype, _ = q
 
-        elif query.data == "skip_q":
-            idx, q = get_current_question(session)
-            if q:
-                label, _, _ = q
-                await save_answer(session, label, "не указано")
-                await send_question(context.bot, chat_id, session)
+    if data == "ans_yes":
+        save_and_next(session, key, "Да")
+        await send_question(context.bot, chat_id, session)
 
-        elif query.data.startswith("sec_") and query.data != "sec_done":
-            section = query.data.replace("sec_", "")
-            if section in session["selected_sections"]:
-                session["selected_sections"].remove(section)
-            else:
-                session["selected_sections"].append(section)
-            # Обновляем клавиатуру
+    elif data == "ans_no":
+        save_and_next(session, key, "Нет")
+        await send_question(context.bot, chat_id, session)
+
+    elif data == "ans_skip":
+        save_and_next(session, key, "не указано")
+        await send_question(context.bot, chat_id, session)
+
+    elif data == "ans_yes_file":
+        # Ждём файл для этого вопроса
+        session["stage"] = "waiting_file"
+        session["waiting_file_for"] = key
+        await query.message.reply_text(
+            "📎 Пришлите файл, фото или документ:\n"
+            "_(или нажмите Пропустить)_",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("⏭ Пропустить", callback_data="ans_skip_file")]
+            ])
+        )
+
+    elif data == "ans_skip_file":
+        file_key = session.get("waiting_file_for", key)
+        save_and_next(session, file_key, "не указано")
+        session["stage"] = "quiz"
+        session["waiting_file_for"] = None
+        await send_question(context.bot, chat_id, session)
+
+    # Разделы
+    elif data.startswith("sec_") and data != "sec_done":
+        section = data[4:]
+        if section in session["selected_sections"]:
+            session["selected_sections"].remove(section)
+        else:
+            session["selected_sections"].append(section)
+        try:
             await query.message.edit_reply_markup(
                 reply_markup=kb_sections(session["service"], session["selected_sections"])
             )
+        except:
+            pass
 
-        elif query.data == "sec_done":
-            idx, q = get_current_question(session)
-            if q:
-                label, _, _ = q
-                selected = session["selected_sections"]
-                answer = ", ".join(selected) if selected else "не выбрано"
-                await save_answer(session, label, answer)
-                await send_question(context.bot, chat_id, session)
+    elif data == "sec_done":
+        selected = session["selected_sections"]
+        answer = ", ".join(selected) if selected else "не выбрано"
+        save_and_next(session, key, answer)
+        await send_question(context.bot, chat_id, session)
 
-    finally:
-        processing.discard(key)
 
 async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    msg_id = update.message.message_id
-    key = f"msg_{user_id}_{msg_id}"
-    if key in processing: return
-    processing.add(key)
+    session = get_session(user_id)
+    chat_id = update.message.chat_id
+    stage = session["stage"]
 
-    try:
-        session = get_session(user_id)
-        chat_id = update.message.chat_id
-        stage = session.get("stage","start")
+    # Не в опросе — показываем главное меню
+    if stage not in ("quiz", "waiting_file"):
+        await update.message.reply_text(
+            "Выберите действие 👇",
+            reply_markup=kb_main()
+        )
+        return
 
-        if stage == "start":
-            await update.message.reply_text(
-                "Выберите действие 👇",
-                reply_markup=kb_main()
-            )
+    # Ждём файл но пришёл текст
+    if stage == "waiting_file":
+        await update.message.reply_text(
+            "Пришлите файл или фото, либо нажмите «Пропустить»."
+        )
+        return
+
+    # Идёт опрос — принимаем текстовый ответ
+    if stage == "quiz":
+        q = current_question(session)
+        if q is None:
+            await finish_order(context.bot, chat_id, session)
             return
-
-        # Ожидание файла
-        if stage.startswith("wait_file_"):
-            if update.message.photo or update.message.document:
-                if update.message.photo:
-                    file_id = update.message.photo[-1].file_id
-                    session["files"].append((file_id, "photo"))
-                elif update.message.document:
-                    file_id = update.message.document.file_id
-                    session["files"].append((file_id, "document"))
-                await update.message.reply_text("✅ Файл получен!")
-            session["q_index"] += 1
+        key, qtype, _ = q
+        # Текстовый вопрос — принимаем ответ
+        if qtype == "text":
+            save_and_next(session, key, update.message.text)
             await send_question(context.bot, chat_id, session)
-            return
+        else:
+            # Для yn/sections просим нажать кнопку
+            await update.message.reply_text("Пожалуйста, используйте кнопки для ответа 👆")
 
-        # Обычный текстовый ответ
-        if stage.startswith("q_"):
-            idx, q = get_current_question(session)
-            if q:
-                label, _, _ = q
-                await save_answer(session, label, update.message.text)
-                await send_question(context.bot, chat_id, session)
-
-    finally:
-        processing.discard(key)
 
 async def file_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     session = get_session(user_id)
-    stage = session.get("stage","")
+    stage = session["stage"]
+    chat_id = update.message.chat_id
 
-    if stage.startswith("wait_file_") or stage.startswith("q_"):
-        if update.message.photo:
-            file_id = update.message.photo[-1].file_id
-            session["files"].append((file_id, "photo"))
-        elif update.message.document:
-            file_id = update.message.document.file_id
-            session["files"].append((file_id, "document"))
-        await update.message.reply_text("✅ Файл получен! Можете прислать ещё или продолжить.")
-        if stage.startswith("wait_file_"):
-            session["q_index"] += 1
-            await send_question(context.bot, update.message.chat_id, session)
+    if stage not in ("quiz", "waiting_file"):
+        return
+
+    # Сохраняем файл
+    if update.message.photo:
+        file_id = update.message.photo[-1].file_id
+        session["files"].append((file_id, "photo"))
+    elif update.message.document:
+        file_id = update.message.document.file_id
+        session["files"].append((file_id, "document"))
+    else:
+        return
+
+    await update.message.reply_text("✅ Файл получен!")
+
+    if stage == "waiting_file":
+        # Файл получен — сохраняем ответ и идём дальше
+        file_key = session.get("waiting_file_for")
+        if file_key:
+            save_and_next(session, file_key, "Да — файл прикреплён")
+        session["stage"] = "quiz"
+        session["waiting_file_for"] = None
+        await send_question(context.bot, chat_id, session)
+
 
 def main():
     app = Application.builder().token(BOT_TOKEN).build()
