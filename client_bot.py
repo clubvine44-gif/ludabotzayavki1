@@ -140,7 +140,11 @@ def get_session(user_id):
             "selected_sections": [],
             "user_info": {},
         }
-    return sessions[user_id]
+    s = sessions[user_id]
+    # Если сессия есть но stage сбросился — восстанавливаем
+    if s.get("stage") == "start" and s.get("service") and s.get("q_index", 0) > 0:
+        s["stage"] = f"q_{s['q_index']}"
+    return s
 
 def reset_session(user_id):
     sessions[user_id] = {
@@ -486,16 +490,9 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         stage = session.get("stage","start")
 
         if stage == "start":
-            # Клиент написал текст до нажатия кнопки — напоминаем
-            from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-            kb = InlineKeyboardMarkup([[
-                InlineKeyboardButton("📋 Оставить заявку на разработку", callback_data="start_quiz")
-            ],[
-                InlineKeyboardButton("💬 Связаться с менеджером", url="https://t.me/LyudmilaVadimovna1")
-            ]])
             await update.message.reply_text(
                 "Выберите действие 👇",
-                reply_markup=kb
+                reply_markup=kb_main()
             )
             return
 
