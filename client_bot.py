@@ -486,7 +486,17 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         stage = session.get("stage","start")
 
         if stage == "start":
-            await start(update, context)
+            # Клиент написал текст до нажатия кнопки — напоминаем
+            from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+            kb = InlineKeyboardMarkup([[
+                InlineKeyboardButton("📋 Оставить заявку на разработку", callback_data="start_quiz")
+            ],[
+                InlineKeyboardButton("💬 Связаться с менеджером", url="https://t.me/LyudmilaVadimovna1")
+            ]])
+            await update.message.reply_text(
+                "Выберите действие 👇",
+                reply_markup=kb
+            )
             return
 
         # Ожидание файла
